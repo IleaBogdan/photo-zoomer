@@ -5,6 +5,10 @@ import glfw
 from OpenGL.GL import *
 from PIL import Image
 from io import * 
+import pygame
+import sys
+from textbox import SimpleTextWindow
+import threading
 
 def make_full_screen_window():
     monitor=glfw.get_primary_monitor()
@@ -23,6 +27,7 @@ def load_image_to_next_frame(image_path):
     # Load image to GPU
     print(Image)
     pil_image=Image.open(image_path).convert('RGB')
+    pil_image=pil_image.transpose(Image.FLIP_TOP_BOTTOM)
     cpu_array=np.array(pil_image)
     gpu_image=cp.asarray(cpu_array)
     # Create texture
@@ -44,12 +49,17 @@ def mouse_button_callback(window, button, action, mods):
         print(f"Mouse clicked at: x={x}, y={y}")
 
 def init():
+    pygame.init()
     glfw.init()
     global window
     window = make_full_screen_window()
     glfw.make_context_current(window)
-    glfw.set_mouse_button_callback(window, mouse_button_callback)  # Register callback
+    glfw.set_mouse_button_callback(window, mouse_button_callback)
     init_img()
+    global text_window
+    text_window = SimpleTextWindow(width=600, height=100, x=300, y=200)  # Position overlay
+    global clock
+    clock = pygame.time.Clock()
 
 def select_zone(np_image: np.array, x: int, y: int, zoom_level: int, w_resolution: int = 1920, h_resolution: int = 1080):
     # returns required image section (x, y, x+1920*zoom_level)
@@ -87,8 +97,22 @@ def save_compression_levels(np_image: np.array, filename: str, exit_w_dim: int =
                 with open(f'{filename}_compression_level_{compression_level}.jpg', 'wb') as f:
                     f.write(get_zone_image(np_image=np_image, x=x, y=y, w_resolution=exit_w_dim, h_resolution=exit_h_dim))
 
+def run_text_window():
+    running = True
+    while running:
+        running = text_window.handle_events()
+        text_window.update_cursor()
+        text_window.draw()
+        pygame.display.flip()
+        clock.tick(60)
+
 def loop():
-    while (not glfw.window_should_close(window)):
+    # Start Pygame text window in a separate thread
+    text_thread = threading.Thread(target=run_text_window, daemon=True)
+    text_thread.start()
+
+    # OpenGL window loop
+    while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS:
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
         
@@ -108,6 +132,8 @@ def loop():
 def kill():
     glfw.terminate()
     cv2.destroyAllWindows()
+    pygame.quit()
+    sys.exit()
 
 def main():
     init()
