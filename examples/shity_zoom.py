@@ -1,3 +1,7 @@
+# this is a joke code
+# it doesn't work as it should,
+# but it is fun
+# so I will keep it and even make it a dependency in some place just so that if you delete it
 import numpy as np
 import cv2
 import cupy as cp
