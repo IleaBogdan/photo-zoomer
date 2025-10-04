@@ -1,3 +1,5 @@
 *.png
 *.fits
 venv
+__pycache__
+test.py

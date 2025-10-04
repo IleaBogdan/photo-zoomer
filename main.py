@@ -10,6 +10,9 @@ import sys
 from textbox import SimpleTextWindow
 import threading
 
+running_event=threading.Event()
+running_event.set()
+
 def make_full_screen_window(): # returning a window with screen size
     monitor=glfw.get_primary_monitor()
     video_mode=glfw.get_video_mode(monitor)
@@ -64,13 +67,12 @@ def init():
     # clock for frame rate limit
     global clock
     clock=pygame.time.Clock()
-    global running
-    running=True
 
 def run_text_window(): # text_window loop
-    while running:
+    while running_event.is_set():
         # pulling text and displaying the text
-        running=text_window.handle_events()
+        if not text_window.handle_events():
+            running_event.clear() # updating the inter thread variable to stop both threads
         text_window.update_cursor()
         text_window.draw()
         pygame.display.flip()
@@ -82,7 +84,7 @@ def loop():
     text_thread.start()
 
     # OpenGL window loop
-    while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running:
+    while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
         # buffer clearing
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
