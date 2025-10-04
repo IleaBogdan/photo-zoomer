@@ -4,6 +4,7 @@ import cv2
 import cupy as cp
 
 def loader(path):
+    print(Image)
     img=Image.open(path).convert('RGB')
     img_np=np.array(img)
     return img_np
