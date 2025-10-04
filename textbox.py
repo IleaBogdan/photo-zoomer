@@ -1,12 +1,20 @@
 import os
 import pygame
-import sys
+import ctypes
 
 class SimpleTextWindow:
-    def __init__(self, width=600, height=100, x=100, y=100):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x},{y}"  # Position window
+    def __init__(self, width=600, height=100, x=300, y=200):
+        os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x},{y}"
         self.screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
+        self.width=width
+        self.height=height
         pygame.display.set_caption("Text Overlay")
+        self.set_always_on_top()
+
+    def set_always_on_top(self):
+        hwnd = pygame.display.get_wm_info()['window']
+        # HWND_TOPMOST = -1, SWP_NOMOVE = 0x0002, SWP_NOSIZE = 0x0001
+        ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002)
         
         # Colors
         self.BG_COLOR = (240, 240, 240)
@@ -21,7 +29,7 @@ class SimpleTextWindow:
         self.cursor_blink_speed = 500  # milliseconds
         
         # Text box rectangle
-        self.text_rect = pygame.Rect(10, 10, width - 20, height - 20)
+        self.text_rect = pygame.Rect(10, 10, self.width - 20, self.height - 20)
         
     def handle_events(self):
         for event in pygame.event.get():
@@ -95,4 +103,3 @@ if __name__ == "__main__":
         # if window.text:  # Only print if there's text
         #     print(f"Current text: {window.text}", end='\r')
     pygame.quit()
-    sys.exit()

@@ -11,15 +11,18 @@ from textbox import SimpleTextWindow
 import threading
 
 def make_full_screen_window():
-    monitor=glfw.get_primary_monitor()
-    video_mode=glfw.get_video_mode(monitor)
+    monitor = glfw.get_primary_monitor()
+    video_mode = glfw.get_video_mode(monitor)
+    # Create a borderless window at (0,0) with screen size
     window = glfw.create_window(
-        video_mode.size.width,      # screen width
-        video_mode.size.height,     # screen height
-        "Fullscreen Window",        # window title
-        monitor,                    # fullscreen
-        None                        # no share context
+        video_mode.size.width,
+        video_mode.size.height,
+        "Fullscreen Window",
+        None,  # Not using monitor for exclusive fullscreen
+        None
     )
+    glfw.set_window_attrib(window, glfw.DECORATED, False)
+    glfw.set_window_pos(window, 0, 0)
     return window
 
 def load_image_to_next_frame(image_path):
