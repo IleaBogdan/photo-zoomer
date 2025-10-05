@@ -43,13 +43,14 @@ def get_preprocessed_image(x: int, y: int, zoom: int):
     return img
 
 def get_stitched_image(x: int, y: int, zoom_level: float, w_resolution: int, h_resolution: int, w_img: int, h_img: int):
+    float_zoom_level = zoom_level
     zoom_level=int(zoom_level)
+    zoom_level=zoom_level if zoom_level>=1 else 1
     if zoom_level==1:
-        img=get_preprocessed_image(x, y, zoom_level)
+        img=get_preprocessed_image(0, 0, zoom_level)
         img=img.resize((w_resolution, h_resolution))
         return img
 
-    zoom_level=zoom_level if zoom_level!=0 else 1
     w_unit = (w_img / zoom_level)
     h_unit = (h_img / zoom_level)
 
@@ -84,7 +85,7 @@ def get_stitched_image(x: int, y: int, zoom_level: float, w_resolution: int, h_r
     x_offset = x-x_tl
     y_offset = y-y_tl
 
-    cropped_img = stitched_img.crop((x_offset, y_offset, x_offset + w_unit, y_offset + h_unit))
+    cropped_img = stitched_img.crop((x_offset, y_offset, x_offset + int(w_img / float_zoom_level), y_offset + int(h_img / float_zoom_level)))
     cropped_img = cropped_img.resize((w_resolution, h_resolution))
 
     return cropped_img

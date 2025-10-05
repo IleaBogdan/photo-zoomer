@@ -280,6 +280,7 @@ def loop():
 
         zoom_level=int(scroll_counter)+1    
         if zoom_level!=prev_zoom:
+            prev_zoom=zoom_level
             width,height=glfw.get_window_size(window)
             width,height=1920,1080
             print(mouse_x,mouse_y,scroll_counter)
