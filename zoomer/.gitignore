@@ -1,0 +1,5 @@
+backend-venv
+photo-zoomer-backend/__pycache__
+photo-zoomer-backend/assets
+photo-zoomer-frontend/node_modules
+photo-zoomer-frontend/README.md

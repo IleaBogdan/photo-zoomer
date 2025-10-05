@@ -30,6 +30,7 @@ def on_scroll(x, y, dx, dy):
         # Scrolling down/backward
         scroll_counter -= 0.5
     scroll_counter=max(0,scroll_counter)
+    scroll_counter=min(scroll_counter,8)
     mouse_x,mouse_y=x,y
 
 
