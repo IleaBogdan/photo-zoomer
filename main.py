@@ -161,10 +161,67 @@ def init_img(funct,param):
     global texture_id,img_w,img_h
     texture_id,img_w,img_h=funct(param) # loading the image to gpu
 
+drawing = False
+rect_start = None
+rect_end = None
+
 def mouse_button_callback(window, button, action, mods):
-    if button==glfw.MOUSE_BUTTON_LEFT and action==glfw.PRESS:
-        x,y=glfw.get_cursor_pos(window)
-        print(f"Mouse clicked at: x={x}, y={y}")
+    global drawing, rect_start, rect_end
+    if button == glfw.MOUSE_BUTTON_LEFT:
+        if action == glfw.PRESS:
+            x, y = glfw.get_cursor_pos(window)
+            drawing = True
+            rect_start = (int(x), int(y))
+            rect_end = (int(x), int(y))
+        elif action == glfw.RELEASE:
+            drawing = False
+            x, y = glfw.get_cursor_pos(window)
+            rect_end = (int(x), int(y))
+            # Capture pixels in marked area
+            width, height = glfw.get_window_size(window)
+            # Convert OpenGL coordinates to pixel coordinates
+            x0, y0 = rect_start
+            x1, y1 = rect_end
+            left = min(x0, x1)
+            right = max(x0, x1)
+            top = min(y0, y1)
+            bottom = max(y0, y1)
+            # OpenGL's origin is bottom-left, so flip y
+            top_flipped = height - top
+            bottom_flipped = height - bottom
+            w = right - left
+            h = abs(top_flipped - bottom_flipped)
+            # Read pixels from framebuffer
+            glPixelStorei(GL_PACK_ALIGNMENT, 1)
+            pixel_data = glReadPixels(left, bottom_flipped, w, h, GL_RGB, GL_UNSIGNED_BYTE)
+            arr = np.frombuffer(pixel_data, dtype=np.uint8).reshape((h, w, 3))
+            print("Marked area pixel array:")
+            print(arr)
+
+def cursor_pos_callback(window, xpos, ypos):
+    global drawing, rect_end
+    if drawing:
+        rect_end = (int(xpos), int(ypos))
+
+def draw_rectangle_overlay():
+    if rect_start and rect_end and drawing:
+        width, height = glfw.get_window_size(window)
+        x0, y0 = rect_start
+        x1, y1 = rect_end
+        # Convert to normalized device coordinates [-1, 1]
+        def norm(x, y):
+            return (2 * x / width - 1, 1 - 2 * y / height)
+        nx0, ny0 = norm(x0, y0)
+        nx1, ny1 = norm(x1, y1)
+        glColor3f(1, 0, 0)  # Red rectangle
+        glLineWidth(2)
+        glBegin(GL_LINE_LOOP)
+        glVertex2f(nx0, ny0)
+        glVertex2f(nx1, ny0)
+        glVertex2f(nx1, ny1)
+        glVertex2f(nx0, ny1)
+        glEnd()
+        glColor3f(1, 1, 1)  # Reset color
 
 def init():
     pygame.init()
@@ -176,6 +233,7 @@ def init():
     window=make_window(1300,800)
     glfw.make_context_current(window)
     glfw.set_mouse_button_callback(window, mouse_button_callback)
+    glfw.set_cursor_pos_callback(window, cursor_pos_callback)
     # init loading the image
     zoom_level=1
     width,height=glfw.get_window_size(window)
@@ -211,6 +269,8 @@ def loop():
     # text_thread.start()
 
     # OpenGL window loop
+    zoom_level=int(scroll_counter)+1
+    prev_zoom=zoom_level
     while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
         
         
@@ -218,14 +278,14 @@ def loop():
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
 
-        zoom_level=int(scroll_counter)+1
-        
-        width,height=glfw.get_window_size(window)
-        width,height=1920,1080
-        print(mouse_x,mouse_y,scroll_counter)
-        newImg=get_stitched_image(x=mouse_x, y=mouse_y, zoom_level=zoom_level, w_resolution=width, h_resolution=height, 
-                              w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
-        init_img(load_image_to_next_frame2,newImg)
+        zoom_level=int(scroll_counter)+1    
+        if zoom_level!=prev_zoom:
+            width,height=glfw.get_window_size(window)
+            width,height=1920,1080
+            print(mouse_x,mouse_y,scroll_counter)
+            newImg=get_stitched_image(x=mouse_x, y=mouse_y, zoom_level=zoom_level, w_resolution=width, h_resolution=height, 
+                                  w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
+            init_img(load_image_to_next_frame2,newImg)
         
         # printing the image on the screen
         glEnable(GL_TEXTURE_2D)
@@ -237,7 +297,10 @@ def loop():
         glTexCoord2f(0,1); glVertex2f(-1,1)
         glEnd()
         glDisable(GL_TEXTURE_2D)
-        
+
+        # Draw overlay rectangle if drawing
+        draw_rectangle_overlay()
+
         glfw.poll_events()
         # buffer swapping
         glfw.swap_buffers(window)
