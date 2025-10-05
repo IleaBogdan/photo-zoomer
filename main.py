@@ -43,27 +43,85 @@ def load_image_to_next_frame(image_path):
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
     return texture_id,w,h
 
-def crop_and_resize_image(image, zoom_level, target_w, target_h):
-    w, h = image.size
-    target_aspect = target_w / target_h
-
-    # Calculate crop size based on zoom_level and aspect ratio
-    crop_w = int(w / zoom_level)
-    crop_h = int(h / zoom_level)
-
-    # Adjust crop_w and crop_h to maintain aspect ratio
-    if crop_w / crop_h > target_aspect:
-        crop_w = int(crop_h * target_aspect)
+def remove_black_borders(image):
+    """
+    Remove black borders from image and return the content area
+    """
+    if isinstance(image, Image.Image):
+        # Convert PIL Image to numpy array for processing
+        img_array = np.array(image)
     else:
-        crop_h = int(crop_w / target_aspect)
+        img_array = image
+    
+    # Convert to grayscale to find non-black regions
+    if len(img_array.shape) == 3:
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img_array
+    
+    # Find non-black pixels
+    non_black = gray > 10  # Threshold to detect non-black pixels
+    
+    # Find bounding box of non-black region
+    rows = np.any(non_black, axis=1)
+    cols = np.any(non_black, axis=0)
+    
+    if not np.any(rows) or not np.any(cols):
+        # Entire image is black, return original
+        return Image.fromarray(img_array) if not isinstance(image, Image.Image) else image
+    
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+    
+    # Crop to content area
+    content_crop = img_array[y_min:y_max+1, x_min:x_max+1]
+    
+    # Convert back to PIL
+    content_pil = Image.fromarray(content_crop)
+    
+    return content_pil
 
+def crop_and_resize_image(image, zoom_level, target_w, target_h):
+    """
+    Crop and resize with integer zoom levels
+    """
+    # First remove black borders
+    image_no_borders = remove_black_borders(image)
+    
+    w, h = image_no_borders.size
+    target_aspect = target_w / target_h
+    
+    # With integer zoom levels, we divide the content area by zoom_level
+    # Higher zoom_level = smaller crop area = more zoomed in
+    crop_w = w // zoom_level
+    crop_h = h // zoom_level
+    
+    # Ensure minimum size
+    crop_w = max(crop_w, 1)
+    crop_h = max(crop_h, 1)
+    
+    # Adjust crop to maintain target aspect ratio
+    if crop_w / crop_h > target_aspect:
+        # Too wide - adjust height
+        crop_h = int(crop_w / target_aspect)
+    else:
+        # Too tall - adjust width
+        crop_w = int(crop_h * target_aspect)
+    
+    # Ensure we don't crop more than available
+    crop_w = min(crop_w, w)
+    crop_h = min(crop_h, h)
+    
+    # Center the crop
     left = (w - crop_w) // 2
     top = (h - crop_h) // 2
     right = left + crop_w
     bottom = top + crop_h
-
-    cropped = image.crop((left, top, right, bottom))
+    
+    # Crop and resize
+    cropped = image_no_borders.crop((left, top, right, bottom))
     resized = cropped.resize((target_w, target_h), Image.LANCZOS)
+    
     return resized
 
 zoom_level=1
@@ -78,6 +136,9 @@ def load_image_to_next_frame2(image, target_w=1920, target_h=1080):
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, cpu_for_texture)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
     return texture_id, w, h
 
 def init_img(funct,param):
@@ -100,11 +161,10 @@ def init():
     glfw.make_context_current(window)
     glfw.set_mouse_button_callback(window, mouse_button_callback)
     # init loading the image
-    zoom_level=3
+    zoom_level=7  # Start with zoom level 2 to remove borders
     newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=1920, h_resolution=1080, 
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     init_img(load_image_to_next_frame2,newImg)
-    # init_img(load_image_to_next_frame,"./output.png")
     
     # text_window 
     global text_window
@@ -128,15 +188,12 @@ def loop():
     text_thread=threading.Thread(target=run_text_window,daemon=True)
     text_thread.start()
 
-    # newImg=get_stitched_image(x=400, y=50, zoom_level=3, w_resolution=1920, h_resolution=1080, 
-    #                           w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     # OpenGL window loop
     while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
         # buffer clearing
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
         
-        # init_img(load_image_to_next_frame2,newImg)
         # printing the image on the screen
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D,texture_id)
