@@ -48,7 +48,8 @@ def get_stitched_image(x: int, y: int, zoom_level: float, w_resolution: int, h_r
         img=get_preprocessed_image(x, y, zoom_level)
         img=img.resize((1920, 1080))
         return img
-        
+
+    zoom_level=zoom_level if zoom_level!=0 else 1
     w_unit = (w_img / zoom_level)
     h_unit = (h_img / zoom_level)
 

@@ -10,16 +10,31 @@ import sys
 from textbox import SimpleTextWindow
 import threading
 from loader import *
+from pynput import mouse
 
 running_event=threading.Event()
 running_event.set()
 
-def make_full_screen_window(): # returning a window with screen size
+scroll_counter=0
+def on_scroll(x, y, dx, dy):
+    global scroll_counter
+    
+    if dy > 0:
+        # Scrolling up/forward
+        scroll_counter += 0.5
+    elif dy < 0:
+        # Scrolling down/backward
+        scroll_counter -= 0.5
+    scroll_counter=max(0,scroll_counter)
+    print(scroll_counter)
+
+
+def make_window(width,height): # returning a window with screen size
     monitor=glfw.get_primary_monitor()
     video_mode=glfw.get_video_mode(monitor)
     window=glfw.create_window(
-        video_mode.size.width,
-        video_mode.size.height,
+        width,
+        height,
         "Fullscreen Window",
         None,
         None
@@ -157,42 +172,51 @@ def init():
     np_rgb_image=init_loader()
     # opengl window (with glfw)
     global window
-    window=make_full_screen_window()
+    window=make_window(1300,800)
     glfw.make_context_current(window)
     glfw.set_mouse_button_callback(window, mouse_button_callback)
     # init loading the image
-    zoom_level=7  # Start with zoom level 2 to remove borders
+    zoom_level=1
     newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=1920, h_resolution=1080, 
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     init_img(load_image_to_next_frame2,newImg)
     
-    # text_window 
-    global text_window
-    text_window=SimpleTextWindow(width=600, height=100, x=300, y=200)
+    # # text_window 
+    # global text_window
+    # text_window=SimpleTextWindow(width=600, height=100, x=300, y=200)
     # clock for frame rate limit
     global clock
     clock=pygame.time.Clock()
 
-def run_text_window(): # text_window loop
-    while running_event.is_set():
-        # pulling text and displaying the text
-        if not text_window.handle_events():
-            running_event.clear() # updating the inter thread variable to stop both threads
-        text_window.update_cursor()
-        text_window.draw()
-        pygame.display.flip()
-        clock.tick(60)
+    # mouse scroll
+    listener = mouse.Listener(on_scroll=on_scroll)
+    listener.start()
+
+# def run_text_window(): # text_window loop
+#     while running_event.is_set():
+#         # pulling text and displaying the text
+#         if not text_window.handle_events():
+#             running_event.clear() # updating the inter thread variable to stop both threads
+#         text_window.update_cursor()
+#         text_window.draw()
+#         pygame.display.flip()
+#         clock.tick(60)
 
 def loop():
-    # Start Pygame text window in a separate thread
-    text_thread=threading.Thread(target=run_text_window,daemon=True)
-    text_thread.start()
+    # # Start Pygame text window in a separate thread
+    # text_thread=threading.Thread(target=run_text_window,daemon=True)
+    # text_thread.start()
 
     # OpenGL window loop
     while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
         # buffer clearing
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
+
+        zoom_level=int(scroll_counter)+1
+        newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=1920, h_resolution=1080, 
+                              w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
+        init_img(load_image_to_next_frame2,newImg)
         
         # printing the image on the screen
         glEnable(GL_TEXTURE_2D)
@@ -214,6 +238,7 @@ def kill(): # destructor
     cv2.destroyAllWindows()
     pygame.quit()
     sys.exit()
+    listener.stop()
 
 def main(): # les mainos lupos
     init();loop();kill()
