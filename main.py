@@ -11,14 +11,17 @@ from textbox import SimpleTextWindow
 import threading
 from loader import *
 from pynput import mouse
+import datetime
 
 running_event=threading.Event()
 running_event.set()
 
-scroll_counter=0
+scroll_counter=1
+mouse_x,mouse_y=0,0
 def on_scroll(x, y, dx, dy):
     global scroll_counter
-    
+    global mouse_x,mouse_y
+
     if dy > 0:
         # Scrolling up/forward
         scroll_counter += 0.5
@@ -26,21 +29,19 @@ def on_scroll(x, y, dx, dy):
         # Scrolling down/backward
         scroll_counter -= 0.5
     scroll_counter=max(0,scroll_counter)
-    print(scroll_counter)
+    mouse_x,mouse_y=x,y
 
 
-def make_window(width,height): # returning a window with screen size
-    monitor=glfw.get_primary_monitor()
-    video_mode=glfw.get_video_mode(monitor)
-    window=glfw.create_window(
+def make_window(width, height):  # returning a window with screen size
+    window = glfw.create_window(
         width,
         height,
-        "Fullscreen Window",
+        "Photo Zoomer",  # Set your window title here
         None,
         None
     )
-    glfw.set_window_attrib(window,glfw.DECORATED,False)
-    glfw.set_window_pos(window,0,0)
+    glfw.set_window_attrib(window, glfw.DECORATED, True)  # Show title bar
+    # glfw.set_window_pos(window, 0, 0)
     return window
 
 def load_image_to_next_frame(image_path):
@@ -177,7 +178,9 @@ def init():
     glfw.set_mouse_button_callback(window, mouse_button_callback)
     # init loading the image
     zoom_level=1
-    newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=1920, h_resolution=1080, 
+    width,height=glfw.get_window_size(window)
+    width,height=1920,1080
+    newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=width, h_resolution=height, 
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     init_img(load_image_to_next_frame2,newImg)
     
@@ -209,12 +212,18 @@ def loop():
 
     # OpenGL window loop
     while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
+        
+        
         # buffer clearing
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
 
         zoom_level=int(scroll_counter)+1
-        newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=1920, h_resolution=1080, 
+        
+        width,height=glfw.get_window_size(window)
+        width,height=1920,1080
+        print(mouse_x,mouse_y,scroll_counter)
+        newImg=get_stitched_image(x=mouse_x, y=mouse_y, zoom_level=zoom_level, w_resolution=width, h_resolution=height, 
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
         init_img(load_image_to_next_frame2,newImg)
         
