@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import cupy as cp
+import math
 
 def init_loader():
     b_channel_hdul = fits.open('ass-at/h_m51_b_s05_drz_sci.fits')
@@ -37,55 +38,54 @@ def init_loader():
     np_rgb_image = rgb_image.get()
     return np_rgb_image
 
-def get_preprocessed_image(x: int, y: int, zoom: int):
-    img = Image.open(f'save/test_compression_level_{zoom}_x_{int(x)}_y_{int(y)}.jpg')
-    # print(img)
-    return img
+def get_preprocessed_image(chunk_x: int, chunk_y: int, zoom: int):
+    path = f'save/test_compression_level_{zoom}_x_{int(chunk_x)}_y_{int(chunk_y)}.jpg'
+    return Image.open(path)
 
-def get_stitched_image(x: int, y: int, zoom_level: float, w_resolution: int, h_resolution: int, w_img: int, h_img: int):
-    float_zoom_level = zoom_level
-    zoom_level=int(zoom_level)
-    zoom_level=zoom_level if zoom_level>=1 else 1
-    if zoom_level==1:
-        img=get_preprocessed_image(0, 0, zoom_level)
-        img=img.resize((w_resolution, h_resolution))
-        return img
+def get_stitched_image(x: int, y: int, zoom_level: int, w_img: int, h_img: int):
+    # Output image size
+    w_resolution, h_resolution = 1920, 1080
 
-    w_unit = (w_img / zoom_level)
-    h_unit = (h_img / zoom_level)
+    # Number of splits per axis at this zoom level
+    splits = zoom_level if zoom_level > 1 else 1
+    chunk_w = w_img // splits
+    chunk_h = h_img // splits
 
-    x_tl = (x // w_unit) * w_unit # multiplu de w_resolution, divizor de w_img, divided by zoom_level
-    y_tl = (y // h_unit) * h_unit # multiplu de w_resolution, divizor de w_img, divided by zoom_level
+    # Find which chunks are needed to cover the requested area
+    x_start = max(0, x - w_resolution // 2)
+    y_start = max(0, y - h_resolution // 2)
+    x_end = min(w_img, x_start + w_resolution)
+    y_end = min(h_img, y_start + h_resolution)
 
-    x_tr = x_tl + w_unit
-    y_tr = y_tl
+    # Which chunk indices do we need?
+    chunk_x_start = x_start // chunk_w
+    chunk_y_start = y_start // chunk_h
+    chunk_x_end = math.ceil(x_end / chunk_w)
+    chunk_y_end = math.ceil(y_end / chunk_h)
 
-    x_bl = x_tl
-    y_bl = y_tl + h_unit
+    # Create a blank canvas to stitch chunks
+    stitched_w = (chunk_x_end - chunk_x_start) * chunk_w
+    stitched_h = (chunk_y_end - chunk_y_start) * chunk_h
+    stitched_img = Image.new("RGB", (stitched_w, stitched_h))
 
-    x_br = x_tl + w_unit
-    y_br = y_tl + h_unit
+    # Paste each chunk in the correct position
+    for cx in range(chunk_x_start, chunk_x_end):
+        for cy in range(chunk_y_start, chunk_y_end):
+            try:
+                chunk_img = get_preprocessed_image(cx * chunk_w, cy * chunk_h, splits)
+                stitched_img.paste(chunk_img, ((cx - chunk_x_start) * chunk_w, (cy - chunk_y_start) * chunk_h))
+            except FileNotFoundError:
+                # If chunk is missing, fill with black
+                blank = Image.new("RGB", (chunk_w, chunk_h), (0, 0, 0))
+                stitched_img.paste(blank, ((cx - chunk_x_start) * chunk_w, (cy - chunk_y_start) * chunk_h))
 
-    print("---",x_tl,y_tl,"---")
-    print("---",x_tr,y_tr,"---")
-    print("---",x_bl,y_bl,"---")
-    print("---",x_br,y_br,"---")
-    img_tl = get_preprocessed_image(x_tl, y_tl, zoom_level)
-    img_tr = get_preprocessed_image(x_tr, y_tr, zoom_level)
-    img_bl = get_preprocessed_image(x_bl, y_bl, zoom_level)
-    img_br = get_preprocessed_image(x_br, y_br, zoom_level)
+    # Crop to the requested area
+    crop_x = x_start - chunk_x_start * chunk_w
+    crop_y = y_start - chunk_y_start * chunk_h
+    cropped_img = stitched_img.crop((crop_x, crop_y, crop_x + w_resolution, crop_y + h_resolution))
 
-    stitched_img = Image.new("RGB", (int(w_unit) * 2, int(h_unit) * 2))
-
-    stitched_img.paste(img_tl, (0, 0))
-    stitched_img.paste(img_tr, (w_resolution, 0))
-    stitched_img.paste(img_bl, (0, h_resolution))
-    stitched_img.paste(img_br, (w_resolution, h_resolution))
-
-    x_offset = x-x_tl
-    y_offset = y-y_tl
-
-    cropped_img = stitched_img.crop((x_offset, y_offset, x_offset + int(w_img / float_zoom_level), y_offset + int(h_img / float_zoom_level)))
-    cropped_img = cropped_img.resize((w_resolution, h_resolution))
+    # Resize to 1920x1080 if needed
+    if cropped_img.size != (w_resolution, h_resolution):
+        cropped_img = cropped_img.resize((w_resolution, h_resolution))
 
     return cropped_img

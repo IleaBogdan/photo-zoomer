@@ -9,7 +9,7 @@ import pygame
 import sys
 from textbox import SimpleTextWindow
 import threading
-from loader import *
+from old_loader import *
 from pynput import mouse
 import datetime
 
@@ -18,6 +18,7 @@ running_event.set()
 
 scroll_counter=1
 mouse_x,mouse_y=0,0
+max_b,max_h,max_v=0,0,0
 def on_scroll(x, y, dx, dy):
     global scroll_counter
     global mouse_x,mouse_y
@@ -164,9 +165,11 @@ def init_img(funct,param):
 drawing = False
 rect_start = None
 rect_end = None
+pixel_array = None  # Add this at the top, after your other globals
+chuck_number=1
 
 def mouse_button_callback(window, button, action, mods):
-    global drawing, rect_start, rect_end
+    global drawing, rect_start, rect_end, pixel_array, chuck_number
     if button == glfw.MOUSE_BUTTON_LEFT:
         if action == glfw.PRESS:
             x, y = glfw.get_cursor_pos(window)
@@ -179,24 +182,72 @@ def mouse_button_callback(window, button, action, mods):
             rect_end = (int(x), int(y))
             # Capture pixels in marked area
             width, height = glfw.get_window_size(window)
-            # Convert OpenGL coordinates to pixel coordinates
             x0, y0 = rect_start
             x1, y1 = rect_end
             left = min(x0, x1)
             right = max(x0, x1)
             top = min(y0, y1)
             bottom = max(y0, y1)
-            # OpenGL's origin is bottom-left, so flip y
             top_flipped = height - top
             bottom_flipped = height - bottom
             w = right - left
             h = abs(top_flipped - bottom_flipped)
-            # Read pixels from framebuffer
-            glPixelStorei(GL_PACK_ALIGNMENT, 1)
-            pixel_data = glReadPixels(left, bottom_flipped, w, h, GL_RGB, GL_UNSIGNED_BYTE)
-            arr = np.frombuffer(pixel_data, dtype=np.uint8).reshape((h, w, 3))
-            print("Marked area pixel array:")
-            print(arr)
+            if w > 0 and h > 0:
+                glPixelStorei(GL_PACK_ALIGNMENT, 1)
+                pixel_data = glReadPixels(left, bottom_flipped, w, h, GL_RGB, GL_UNSIGNED_BYTE)
+                arr = np.frombuffer(pixel_data, dtype=np.uint8).reshape((h, w, 3))
+                pixel_array = arr.flatten().tolist()  # Flat list of all RGB values
+                print("Marked area pixel array (flat RGB values):")
+                # print(pixel_array)
+                elements=[]
+                elements.append([121.6,102.6,97.3,656.3,486.1,434,410.2])
+                elements.append([58.4,53.7,51.3,1083,587.6,447.1,501.6,492.2])
+                elements.append([323.3,670.8,610.4])
+                elements.append([234.9,313.1,313,455.4,527])
+                elements.append([69.4,88.3,108.2,136.2,162.3,206.6])
+                elements.append([777.4,844.6,630,557.7,436.8])
+                elements.append([95,74.2])
+                elements.append([585.2,640.2,703.2,724.5,743.9])
+                elements.append([589,589.6])
+                elements.append([285.2,279.6])
+                elements.append([396.2,394.4,669.6])
+                elements.append([251.6,288.1,390.5])
+                elements.append([177.5,178.7])
+                elements.append([180.7,181.2,190])
+                elements.append([134.7,135.7])
+                elements.append([696.5,763.5,811.5,842.5,912.3])
+                symbol=['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar']
+                counter=dict({})
+                with open("log.txt","a") as file:
+                    file.write(f'Chunk {chuck_number}\n')
+                    chuck_number+=1
+                    for i in range(0,len(pixel_array)):
+                        r,g,b=0,0,0
+                        if i+2<len(pixel_array):
+                            r=(800*pixel_array[i]/255+700)
+                            g=(300*pixel_array[i+1]/255+400)
+                            b=(400*pixel_array[i+2]/255)
+                        i+=2
+                        strg=''
+                        for j in range(0,len(elements)):
+                            for value in elements[j]:
+                                if (value+3>r and value-3<r) or (value+3>g and value-3<g) or (value+3>b and value-3<b):
+                                    if not symbol[j] in counter:
+                                        counter.update({symbol[j]:0})
+                                    counter[symbol[j]]+=1
+                                    break
+                        # if strg=="": continue
+                        # if not strg in counter:
+                        #     counter.update({strg:0})
+                        # counter[strg]+=1
+                    for key,value in counter.items():
+                        file.write(key)
+                        file.write(': ')
+                        file.write(str(value))
+                        file.write('\n')
+                    file.write('\n')
+            else:
+                pixel_array = None
 
 def cursor_pos_callback(window, xpos, ypos):
     global drawing, rect_end
@@ -241,6 +292,13 @@ def init():
     newImg=get_stitched_image(x=0, y=0, zoom_level=zoom_level, w_resolution=width, h_resolution=height, 
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     init_img(load_image_to_next_frame2,newImg)
+
+    global max_b,max_h,max_v
+    with open("maximus.txt","r") as file:
+        lines=file.readlines()
+        max_b=float(lines[0])
+        max_h=float(lines[1])
+        max_v=float(lines[2])
     
     # # text_window 
     # global text_window

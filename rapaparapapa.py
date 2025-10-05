@@ -26,7 +26,8 @@ def init():
     b_channel = np.array(b_channel)
     h_channel = np.array(h_channel)
     v_channel = np.array(v_channel)
-    b_channel.max()
+    with open("maximus.txt","a") as file:
+        file.write(f"{b_channel.max()}\n{h_channel.max()}\n{v_channel.max()}")
 
     b_ch_normalised = ImageNormalize(b_channel, interval=ZScaleInterval(), stretch=LinearStretch())
     h_ch_normalised = ImageNormalize(h_channel, interval=ZScaleInterval(), stretch=LinearStretch())
