@@ -9,7 +9,7 @@ import pygame
 import sys
 from textbox import SimpleTextWindow
 import threading
-from old_loader import *
+from loader import *
 from pynput import mouse
 import datetime
 
@@ -294,12 +294,12 @@ def init():
                               w_img=np_rgb_image.shape[1], h_img=np_rgb_image.shape[0])
     init_img(load_image_to_next_frame2,newImg)
 
-    global max_b,max_h,max_v
-    with open("maximus.txt","r") as file:
-        lines=file.readlines()
-        max_b=float(lines[0])
-        max_h=float(lines[1])
-        max_v=float(lines[2])
+    # global max_b,max_h,max_v
+    # with open("maximus.txt","r") as file:
+    #     lines=file.readlines()
+    #     max_b=float(lines[0])
+    #     max_h=float(lines[1])
+    #     max_v=float(lines[2])
     
     # # text_window 
     # global text_window
@@ -328,7 +328,7 @@ def loop():
     # text_thread.start()
 
     # OpenGL window loop
-    zoom_level=int(scroll_counter)+1
+    global zoom_level
     prev_zoom=zoom_level
     while (not glfw.window_should_close(window)) and glfw.get_key(window, glfw.KEY_ESCAPE)!=glfw.PRESS and running_event.is_set():
         
@@ -337,7 +337,7 @@ def loop():
         glClearColor(.2,.3,.8,1.0)
         glClear(GL_COLOR_BUFFER_BIT)
 
-        zoom_level=int(scroll_counter)+1    
+        zoom_level=int(scroll_counter)    
         if zoom_level!=prev_zoom:
             prev_zoom=zoom_level
             width,height=glfw.get_window_size(window)

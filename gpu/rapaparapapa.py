@@ -26,8 +26,8 @@ def init():
     b_channel = np.array(b_channel)
     h_channel = np.array(h_channel)
     v_channel = np.array(v_channel)
-    with open("maximus.txt","a") as file:
-        file.write(f"{b_channel.max()}\n{h_channel.max()}\n{v_channel.max()}")
+    # with open("maximus.txt","a") as file:
+    #     file.write(f"{b_channel.max()}\n{h_channel.max()}\n{v_channel.max()}")
 
     b_ch_normalised = ImageNormalize(b_channel, interval=ZScaleInterval(), stretch=LinearStretch())
     h_ch_normalised = ImageNormalize(h_channel, interval=ZScaleInterval(), stretch=LinearStretch())
@@ -101,7 +101,7 @@ def get_zone_image(np_image: np.array, x: int, y: int, zoom_level: int, w_resolu
 def save_compression_levels(np_image: np.array, filename: str, exit_w_dim: int = 1920, exit_h_dim: int = 1080):
     w_img = np_image.shape[1]
     h_img = np_image.shape[0]
-
+    print(w_img,h_img)
     max_zoom = int(max(w_img / exit_w_dim, h_img / exit_h_dim)) + 1
     for zoom_level in range(1, max_zoom+1):
         x = 0
