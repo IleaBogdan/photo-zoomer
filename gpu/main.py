@@ -12,6 +12,7 @@ import threading
 from loader import *
 from pynput import mouse
 import datetime
+import os
 
 running_event=threading.Event()
 running_event.set()
@@ -369,6 +370,28 @@ def kill(): # destructor
     glfw.terminate()
     cv2.destroyAllWindows()
     pygame.quit()
+    
+    # Open log.txt before exiting
+    import os
+    import platform
+    import subprocess
+    
+    log_file = "log.txt"
+    
+    if os.path.exists(log_file):
+        try:
+            if platform.system() == "Windows":
+                os.startfile(log_file)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", log_file])
+            else:  # Linux and other Unix-like
+                subprocess.run(["xdg-open", log_file])
+            print(f"Opened {log_file} successfully")
+        except Exception as e:
+            print(f"Error opening {log_file}: {e}")
+    else:
+        print(f"File {log_file} not found")
+    
     sys.exit()
     listener.stop()
 
