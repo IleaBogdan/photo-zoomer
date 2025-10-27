@@ -7,3 +7,9 @@ ass-at
 save
 *.zip
 *.txt
+zoomer/backend-venv
+zoomer/photo-zoomer-frontend/node_modules
+build
+dist
+gpu/main.spec
+test
